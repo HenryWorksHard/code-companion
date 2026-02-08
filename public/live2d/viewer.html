@@ -49,23 +49,33 @@
         const scale = 0.095;
         model.scale.set(scale);
         
-        // At scale 0.095: ~500x1017
-        // Position so she comes up from bottom - anchor at top of her head area
-        // The model's center seems to be around chest level
+        // Position so she comes up from the bottom
         model.anchor.set(0.5, 0.35);
         model.position.set(canvasWidth / 2, canvasHeight + 50);
         
         app.stage.addChild(model);
         
+        // Smooth mouse tracking with easing
+        let targetX = canvasWidth / 2;
+        let targetY = canvasHeight / 2;
+        
+        const updateFocus = () => {
+          model.focus(targetX, targetY);
+          requestAnimationFrame(updateFocus);
+        };
+        updateFocus();
+        
         // Mouse tracking
         document.addEventListener('mousemove', (e) => {
-          model.focus(e.clientX, e.clientY);
+          targetX = e.clientX;
+          targetY = e.clientY;
         });
         
         // Track from parent window 
         window.addEventListener('message', (e) => {
           if (e.data?.type === 'mousemove') {
-            model.focus(e.data.x, e.data.y);
+            targetX = e.data.x;
+            targetY = e.data.y;
           }
         });
 
