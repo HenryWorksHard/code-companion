@@ -60,9 +60,9 @@
         // Scale and position head (sits on top of body)
         const headScale = 0.068;
         headModel.scale.set(headScale);
-        headModel.anchor.set(0.5, 0.5);
-        // Head positioned higher to sit on the neck
-        headModel.position.set(canvasWidth / 2, canvasHeight / 2 - 170);
+        headModel.anchor.set(0.5, 1.0); // Anchor at bottom of head
+        // Head positioned to sit on the neck
+        headModel.position.set(canvasWidth / 2, 260);
         
         // Add body first, then head on top
         app.stage.addChild(bodyModel);
