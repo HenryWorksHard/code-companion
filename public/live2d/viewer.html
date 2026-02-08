@@ -37,30 +37,43 @@
       });
 
       try {
-        const modelUrl = window.location.href.replace('viewer.html', 'model.model3.json');
+        const baseUrl = window.location.href.replace('viewer.html', '');
         
-        const model = await PIXI.live2d.Live2DModel.from(modelUrl, {
+        // Load body model first (behind)
+        const bodyModel = await PIXI.live2d.Live2DModel.from(baseUrl + 'body/model.model3.json', {
           autoInteract: false,
           autoUpdate: true,
         });
         
-        // Model is 5264x10707 (very tall full body)
-        // Scale to show full body
-        const scale = 0.068;
-        model.scale.set(scale);
+        // Load head model second (on top)
+        const headModel = await PIXI.live2d.Live2DModel.from(baseUrl + 'head/model.model3.json', {
+          autoInteract: false,
+          autoUpdate: true,
+        });
         
-        // Position centered to show full body
-        model.anchor.set(0.5, 0.5);
-        model.position.set(canvasWidth / 2, canvasHeight / 2 + 20);
+        // Scale and position body
+        const bodyScale = 0.068;
+        bodyModel.scale.set(bodyScale);
+        bodyModel.anchor.set(0.5, 0.5);
+        bodyModel.position.set(canvasWidth / 2, canvasHeight / 2 + 50);
         
-        app.stage.addChild(model);
+        // Scale and position head (sits on top of body)
+        const headScale = 0.068;
+        headModel.scale.set(headScale);
+        headModel.anchor.set(0.5, 0.5);
+        // Head positioned higher to sit on the neck
+        headModel.position.set(canvasWidth / 2, canvasHeight / 2 - 170);
+        
+        // Add body first, then head on top
+        app.stage.addChild(bodyModel);
+        app.stage.addChild(headModel);
         
         // Smooth mouse tracking with easing
         let targetX = canvasWidth / 2;
         let targetY = canvasHeight / 2;
         
         const updateFocus = () => {
-          model.focus(targetX, targetY);
+          headModel.focus(targetX, targetY);
           requestAnimationFrame(updateFocus);
         };
         updateFocus();
@@ -79,11 +92,11 @@
           }
         });
 
-        // Click for expression
+        // Click for expression (head model has expressions)
         document.addEventListener('click', () => {
-          const exprs = model.internalModel.motionManager?.expressionManager?.definitions;
+          const exprs = headModel.internalModel.motionManager?.expressionManager?.definitions;
           if (exprs?.length) {
-            model.expression(Math.floor(Math.random() * exprs.length));
+            headModel.expression(Math.floor(Math.random() * exprs.length));
           }
         });
 
