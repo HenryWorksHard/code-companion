@@ -61,8 +61,8 @@
         const headScale = 0.068;
         headModel.scale.set(headScale);
         headModel.anchor.set(0.5, 0.5);
-        // Head positioned to connect with body neck (moved back)
-        headModel.position.set(canvasWidth / 2 + 8, 445);
+        // Head positioned to connect with body neck (centered, raised slightly)
+        headModel.position.set(canvasWidth / 2, 438);
         
         // Add body first, then head on top
         app.stage.addChild(bodyModel);
