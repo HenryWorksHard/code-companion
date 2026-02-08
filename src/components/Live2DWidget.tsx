@@ -34,27 +34,16 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
     };
   }, [status]);
 
-  if (status === 'error' && fallback) {
-    return <>{fallback}</>;
-  }
-
   return (
     <div
       className="fixed bottom-0 right-4 z-50 pointer-events-auto"
       style={{ width: 350, height: 450 }}
     >
-      {status === 'loading' && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
       <iframe
         src="/live2d/viewer.html"
-        className={`w-full h-full border-0 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+        className="w-full h-full border-0"
         style={{
           background: 'transparent',
-          pointerEvents: status === 'loaded' ? 'auto' : 'none',
-          transition: 'opacity 0.5s',
         }}
         allow="autoplay"
       />
