@@ -204,7 +204,7 @@ export default function Home() {
       {/* Live2D Character - Place model files in public/live2d/ */}
       {/* Expects: model.json (or model3.json), textures, moc file */}
       <Live2DCharacter 
-        modelPath="/live2d/model.json"
+        modelPath="/live2d/model.model3.json"
         width={350}
         height={450}
         scale={0.3}
