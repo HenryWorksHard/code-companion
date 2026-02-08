@@ -58,8 +58,8 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
     <div
       className="fixed bottom-0 right-0 z-50 pointer-events-none transition-opacity duration-500"
       style={{ 
-        width: 350, 
-        height: 500,
+        width: 400, 
+        height: 750,
         opacity: status === 'loaded' ? 1 : 0.7,
       }}
     >

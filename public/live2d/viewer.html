@@ -24,8 +24,8 @@
       }
 
       const canvas = document.getElementById('canvas');
-      const canvasWidth = 350;
-      const canvasHeight = 500;
+      const canvasWidth = 400;
+      const canvasHeight = 750;
       
       const app = new PIXI.Application({
         view: canvas,
@@ -45,13 +45,13 @@
         });
         
         // Model is 5264x10707 (very tall full body)
-        // Scale to show nice upper body portrait
-        const scale = 0.095;
+        // Scale to show full body
+        const scale = 0.068;
         model.scale.set(scale);
         
-        // Position so she comes up from the bottom
-        model.anchor.set(0.5, 0.35);
-        model.position.set(canvasWidth / 2, canvasHeight + 50);
+        // Position centered to show full body
+        model.anchor.set(0.5, 0.5);
+        model.position.set(canvasWidth / 2, canvasHeight / 2 + 20);
         
         app.stage.addChild(model);
         
