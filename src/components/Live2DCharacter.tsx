@@ -1,20 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as PIXI from 'pixi.js';
-import { Live2DModel } from 'pixi-live2d-display';
-
-// Register the Live2D model with PIXI
-if (typeof window !== 'undefined') {
-  (window as any).PIXI = PIXI;
-}
 
 interface Live2DCharacterProps {
-  modelPath: string; // Path to .model.json or .model3.json
+  modelPath: string;
   width?: number;
   height?: number;
   position?: { x: number; y: number };
   scale?: number;
+  fallback?: React.ReactNode;
 }
 
 export default function Live2DCharacter({
@@ -23,33 +17,59 @@ export default function Live2DCharacter({
   height = 400,
   position = { x: 0, y: 0 },
   scale = 0.25,
+  fallback,
 }: Live2DCharacterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const appRef = useRef<PIXI.Application | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const appRef = useRef<any>(null);
   const modelRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
 
+    let mounted = true;
+
     const initLive2D = async () => {
       try {
-        // Create PIXI Application
+        // Dynamically import to avoid SSR issues
+        const PIXI = await import('pixi.js');
+        const { Live2DModel } = await import('pixi-live2d-display');
+
+        // Register PIXI globally (required by pixi-live2d-display)
+        (window as any).PIXI = PIXI;
+
+        if (!mounted || !canvasRef.current) return;
+
+        // Create PIXI Application (v7 style)
         const app = new PIXI.Application({
-          view: canvasRef.current!,
+          view: canvasRef.current as HTMLCanvasElement,
           width,
           height,
           backgroundAlpha: 0,
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
         });
+
+        if (!mounted) {
+          app.destroy();
+          return;
+        }
+
         appRef.current = app;
 
         // Load the Live2D model
         const model = await Live2DModel.from(modelPath, {
-          autoInteract: false, // We'll handle interaction ourselves
+          autoInteract: false,
         });
+
+        if (!mounted) {
+          app.destroy();
+          return;
+        }
+
         modelRef.current = model;
 
         // Position and scale the model
@@ -57,83 +77,67 @@ export default function Live2DCharacter({
         model.position.set(width / 2, height / 2);
         model.scale.set(scale);
 
-        // Add to stage (cast to any for pixi version compatibility)
+        // Add to stage
         app.stage.addChild(model as any);
 
         // Enable mouse tracking
-        setupMouseTracking(model);
+        const onMouseMove = (e: MouseEvent) => {
+          if (!containerRef.current || !model.internalModel) return;
+          const rect = containerRef.current.getBoundingClientRect();
+          model.focus(e.clientX - rect.left, e.clientY - rect.top);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        (model as any)._mouseCleanup = () => {
+          window.removeEventListener('mousemove', onMouseMove);
+        };
 
         setIsLoaded(true);
       } catch (err) {
         console.error('Failed to load Live2D model:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load model');
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load model');
+          setUseFallback(true);
+        }
       }
     };
 
     initLive2D();
 
     return () => {
+      mounted = false;
+      if (modelRef.current?._mouseCleanup) {
+        modelRef.current._mouseCleanup();
+      }
       if (appRef.current) {
-        appRef.current.destroy(true, { children: true });
+        try {
+          appRef.current.destroy(true, { children: true });
+        } catch (e) {
+          // Ignore cleanup errors
+        }
         appRef.current = null;
       }
     };
   }, [modelPath, width, height, scale]);
 
-  const setupMouseTracking = (model: any) => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!canvasRef.current || !model.internalModel) return;
-
-      const rect = canvasRef.current.getBoundingClientRect();
-      
-      // Calculate mouse position relative to canvas center
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      // Normalize to -1 to 1 range
-      const x = (e.clientX - centerX) / (window.innerWidth / 2);
-      const y = (e.clientY - centerY) / (window.innerHeight / 2);
-
-      // Focus on the mouse position (this makes eyes/head follow)
-      model.focus(e.clientX - rect.left, e.clientY - rect.top);
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-
-    // Store cleanup function
-    (model as any)._mouseCleanup = () => {
-      window.removeEventListener('mousemove', onMouseMove);
-    };
-  };
-
-  // Cleanup mouse tracking on unmount
-  useEffect(() => {
-    return () => {
-      if (modelRef.current?._mouseCleanup) {
-        modelRef.current._mouseCleanup();
-      }
-    };
-  }, []);
-
-  // Tap interaction - trigger random motion
   const handleClick = () => {
     if (modelRef.current) {
-      // Try to play a random motion
-      const motionGroups = modelRef.current.internalModel?.motionManager?.definitions;
-      if (motionGroups) {
-        const groups = Object.keys(motionGroups);
-        if (groups.length > 0) {
-          const randomGroup = groups[Math.floor(Math.random() * groups.length)];
-          modelRef.current.motion(randomGroup);
-        }
+      try {
+        modelRef.current.expression();
+      } catch (e) {
+        // Ignore expression errors
       }
-      // Also trigger expression if available
-      modelRef.current.expression();
     }
   };
 
+  // Show fallback if there's an error
+  if (useFallback && fallback) {
+    return <>{fallback}</>;
+  }
+
   return (
     <div
+      ref={containerRef}
       className="fixed z-50 pointer-events-auto cursor-pointer"
       style={{
         bottom: position.y,
@@ -143,9 +147,9 @@ export default function Live2DCharacter({
       }}
       onClick={handleClick}
     >
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center text-red-400 text-xs bg-black/50 rounded-lg p-2">
-          Model load error: {error}
+      {error && !fallback && (
+        <div className="absolute inset-0 flex items-center justify-center text-red-400 text-xs bg-black/50 rounded-lg p-2 text-center">
+          Live2D error:<br/>{error}
         </div>
       )}
       {!isLoaded && !error && (
