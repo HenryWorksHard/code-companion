@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: transparent; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+  <!-- Cubism 4 Core -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+  <!-- PIXI.js v6 -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+  <!-- pixi-live2d-display -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    const modelPath = './model.model3.json';
+    
+    async function init() {
+      const app = new PIXI.Application({
+        view: document.getElementById('canvas'),
+        width: 350,
+        height: 450,
+        backgroundAlpha: 0,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+      });
+
+      try {
+        const model = await PIXI.live2d.Live2DModel.from(modelPath);
+        
+        model.anchor.set(0.5, 0.5);
+        model.position.set(175, 280);
+        model.scale.set(0.2);
+        
+        app.stage.addChild(model);
+
+        // Mouse tracking
+        document.addEventListener('mousemove', (e) => {
+          model.focus(e.clientX, e.clientY);
+        });
+
+        // Click for expression
+        document.addEventListener('click', () => {
+          model.expression();
+        });
+
+        // Notify parent that model loaded
+        window.parent.postMessage({ type: 'live2d-loaded' }, '*');
+      } catch (err) {
+        console.error('Live2D failed:', err);
+        window.parent.postMessage({ type: 'live2d-error', error: err.message }, '*');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

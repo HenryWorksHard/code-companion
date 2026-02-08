@@ -10,10 +10,9 @@ const Live2DCompanion = dynamic(() => import('@/components/Live2DCompanion'), {
   loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
 });
 
-// Real Live2D model component
-const Live2DCharacter = dynamic(() => import('@/components/Live2DCharacter'), {
+// Real Live2D widget (oh-my-live2d)
+const Live2DWidget = dynamic(() => import('@/components/Live2DWidget'), {
   ssr: false,
-  loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
 });
 
 interface Message {
@@ -201,15 +200,8 @@ export default function Home() {
       {/* CRT Overlay */}
       <div className="crt-overlay" />
       
-      {/* Live2D Character with SVG fallback */}
-      <Live2DCharacter 
-        modelPath="/live2d/model.model3.json"
-        width={350}
-        height={450}
-        scale={0.3}
-        position={{ x: 20, y: 0 }}
-        fallback={<Live2DCompanion />}
-      />
+      {/* Live2D Widget with SVG fallback */}
+      <Live2DWidget fallback={<Live2DCompanion />} />
 
       {/* Header */}
       <header className="border-b border-cyan-500/30 px-6 py-4 relative z-10">
