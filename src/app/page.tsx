@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Rocket, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Rocket, Loader2, Heart, Star, Wand2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 // Dynamic import to avoid SSR issues with Live2D
 const Live2DCompanion = dynamic(() => import('@/components/Live2DCompanion'), {
   ssr: false,
-  loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
+  loading: () => <div className="fixed bottom-0 right-0 w-[350px] h-[500px]" />,
 });
 
-// Real Live2D widget (oh-my-live2d)
 const Live2DWidget = dynamic(() => import('@/components/Live2DWidget'), {
   ssr: false,
 });
@@ -27,27 +26,36 @@ interface DeploymentStatus {
   error?: string;
 }
 
-// Matrix rain characters
-const matrixChars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+// Floating shapes for background
+const shapes = ['✨', '💖', '⭐', '🌸', '💫', '🎀', '✿', '♡'];
 
-function MatrixRain() {
-  const columns = 20;
-  
+function KawaiiBackground() {
+  const [particles, setParticles] = useState<Array<{id: number; shape: string; left: number; delay: number; duration: number}>>([]);
+
+  useEffect(() => {
+    const newParticles = Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      shape: shapes[Math.floor(Math.random() * shapes.length)],
+      left: Math.random() * 100,
+      delay: Math.random() * 10,
+      duration: 15 + Math.random() * 10,
+    }));
+    setParticles(newParticles);
+  }, []);
+
   return (
-    <div className="matrix-bg">
-      {Array.from({ length: columns }).map((_, i) => (
+    <div className="kawaii-bg">
+      {particles.map((p) => (
         <div
-          key={i}
-          className="matrix-column"
+          key={p.id}
+          className="floating-shape"
           style={{
-            left: `${(i / columns) * 100}%`,
-            animationDuration: `${10 + Math.random() * 10}s`,
-            animationDelay: `${Math.random() * 5}s`,
+            left: `${p.left}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
           }}
         >
-          {Array.from({ length: 30 }).map((_, j) => (
-            <div key={j}>{matrixChars[Math.floor(Math.random() * matrixChars.length)]}</div>
-          ))}
+          {p.shape}
         </div>
       ))}
     </div>
@@ -58,7 +66,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: ">> SYSTEM ONLINE <<\n\nHey there, coder! 💾 I'm your Y2K Code Companion.\n\nTell me what you want to build and I'll compile it into reality. Websites, apps, landing pages — just describe your vision!",
+      content: "Hi there! ✨ I'm Kui-chan, your cute coding companion~\n\nTell me what you'd like to build and I'll help make it real! Websites, apps, landing pages — just describe your dream project! 💖",
       timestamp: new Date(),
     },
   ]);
@@ -138,7 +146,7 @@ export default function Home() {
             ...prev,
             {
               role: 'assistant',
-              content: `>> DEPLOYMENT COMPLETE <<\n\n🚀 Your creation is LIVE!\n\n${deployData.url}\n\nClick the link to see it in action!`,
+              content: `Yay! Your creation is live! 🎉✨\n\n${deployData.url}\n\nClick the link to see your beautiful new site~ 💖`,
               timestamp: new Date(),
             },
           ]);
@@ -150,7 +158,7 @@ export default function Home() {
         ...prev,
         {
           role: 'assistant',
-          content: ">> ERROR << System malfunction! Let's try that again — what would you like to build?",
+          content: "Oopsie! Something went wrong... 😢 Let's try that again! What would you like to build? 💪",
           timestamp: new Date(),
         },
       ]);
@@ -168,12 +176,8 @@ export default function Home() {
 
   const formatMessage = (content: string) => {
     return content.split('\n').map((line, i) => {
-      const isHeader = line.startsWith('>>');
       const isLink = line.startsWith('http');
       
-      if (isHeader) {
-        return <p key={i} className="text-cyan-400 font-bold neon-cyan mb-2">{line}</p>;
-      }
       if (isLink) {
         return (
           <a
@@ -181,95 +185,92 @@ export default function Home() {
             href={line}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-magenta-400 hover:underline block mb-2"
-            style={{ color: '#ff00ff', textShadow: '0 0 5px #ff00ff' }}
+            className="text-pink-500 hover:text-pink-600 underline decoration-2 decoration-pink-300 underline-offset-2 transition-colors block my-2"
           >
-            {line}
+            {line} 🔗
           </a>
         );
       }
-      return <p key={i} className="mb-1">{line}</p>;
+      return line ? <p key={i} className="mb-1">{line}</p> : <br key={i} />;
     });
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col relative overflow-hidden">
-      {/* Matrix Background */}
-      <MatrixRain />
+    <div className="min-h-screen flex flex-col relative overflow-hidden">
+      {/* Kawaii Background */}
+      <KawaiiBackground />
       
-      {/* CRT Overlay */}
-      <div className="crt-overlay" />
-      
-      {/* Live2D Widget with SVG fallback */}
+      {/* Live2D Widget */}
       <Live2DWidget fallback={<Live2DCompanion />} />
 
       {/* Header */}
-      <header className="border-b border-cyan-500/30 px-6 py-4 relative z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-black border-2 border-cyan-400 rounded-lg flex items-center justify-center relative">
-              <span className="text-2xl">💾</span>
-              <div className="absolute inset-0 border border-cyan-400/50 rounded-lg animate-pulse" />
+      <header className="px-6 py-4 relative z-10">
+        <div className="max-w-3xl mx-auto">
+          <div className="card px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center shadow-lg pulse-glow">
+                <Wand2 className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="font-bold text-2xl">
+                  <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+                    Code Companion
+                  </span>
+                </h1>
+                <p className="text-sm text-purple-400 flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-current" />
+                  Build amazing things with AI magic~
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-xl tracking-wider">
-                <span className="neon-cyan">CODE</span>
-                <span className="text-white">_</span>
-                <span className="neon-magenta" style={{ color: '#ff00ff' }}>COMPANION</span>
-              </h1>
-              <p className="text-xs text-cyan-400/70 font-mono">v2.0.0.0 // BUILD.DEPLOY.REPEAT</p>
-            </div>
+            {deployment.status === 'complete' && deployment.url && (
+              <a
+                href={deployment.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-kawaii flex items-center gap-2 text-sm"
+              >
+                <Rocket className="w-4 h-4" />
+                View Live ✨
+              </a>
+            )}
           </div>
-          {deployment.status === 'complete' && deployment.url && (
-            <a
-              href={deployment.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-black border border-lime-400 text-lime-400 rounded hover:bg-lime-400/10 transition-colors font-mono text-sm"
-              style={{ textShadow: '0 0 5px #00ff00' }}
-            >
-              <Rocket className="w-4 h-4" />
-              VIEW_LIVE
-            </a>
-          )}
         </div>
       </header>
 
       {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto relative z-10">
-        <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
-          <div className="space-y-6">
+      <main className="flex-1 overflow-y-auto relative z-10 px-6">
+        <div className="max-w-3xl mx-auto py-6 pb-40">
+          <div className="space-y-4">
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                className={`flex gap-3 fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
+                {/* Avatar */}
                 <div
-                  className={`w-10 h-10 border-2 rounded flex items-center justify-center shrink-0 ${
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                     message.role === 'assistant'
-                      ? 'border-cyan-400 bg-cyan-400/10'
-                      : 'border-magenta-400 bg-magenta-400/10'
+                      ? 'bg-gradient-to-br from-pink-300 to-purple-300'
+                      : 'bg-gradient-to-br from-purple-400 to-pink-400'
                   }`}
-                  style={{ borderColor: message.role === 'user' ? '#ff00ff' : '#00ffff' }}
                 >
-                  <span className="text-lg">{message.role === 'assistant' ? '🤖' : '👤'}</span>
+                  <span className="text-lg">{message.role === 'assistant' ? '🌸' : '💜'}</span>
                 </div>
-                <div
-                  className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}
-                >
+                
+                {/* Message Bubble */}
+                <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
                   <div
-                    className={`inline-block max-w-[85%] px-4 py-3 rounded-lg font-mono text-sm ${
+                    className={`inline-block max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${
                       message.role === 'assistant'
-                        ? 'bg-black/80 border border-cyan-500/30 text-left'
-                        : 'bg-black/80 border border-magenta-500/30'
+                        ? 'bubble-assistant text-left shadow-sm'
+                        : 'bubble-user'
                     }`}
-                    style={{ borderColor: message.role === 'user' ? 'rgba(255,0,255,0.3)' : 'rgba(0,255,255,0.3)' }}
                   >
-                    <div className="leading-relaxed">
-                      {formatMessage(message.content)}
-                    </div>
+                    {formatMessage(message.content)}
                   </div>
-                  <p className="text-xs text-cyan-400/50 mt-1 font-mono">
+                  <p className="text-xs text-purple-300 mt-1.5 px-1">
                     {message.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -279,19 +280,30 @@ export default function Home() {
               </div>
             ))}
 
+            {/* Loading indicator */}
             {isLoading && (
-              <div className="flex gap-4">
-                <div className="w-10 h-10 border-2 border-cyan-400 bg-cyan-400/10 rounded flex items-center justify-center">
-                  <span className="text-lg">🤖</span>
+              <div className="flex gap-3 fade-in-up">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
+                  <span className="text-lg">🌸</span>
                 </div>
-                <div className="bg-black/80 border border-cyan-500/30 px-4 py-3 rounded-lg">
-                  <div className="flex items-center gap-2 text-cyan-400 font-mono text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>
-                      {deployment.status === 'deploying'
-                        ? '>> DEPLOYING...'
-                        : '>> COMPILING...'}
-                    </span>
+                <div className="bubble-assistant px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    {deployment.status === 'deploying' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
+                        <span className="text-purple-400">Deploying your creation~</span>
+                        <Sparkles className="w-4 h-4 text-pink-400" />
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex gap-1">
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                        </div>
+                        <span className="text-purple-400 ml-2">Thinking...</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -303,34 +315,41 @@ export default function Home() {
       </main>
 
       {/* Input Area */}
-      <footer className="fixed bottom-0 left-0 right-0 border-t border-cyan-500/30 bg-[#0a0a0f]/95 backdrop-blur px-6 py-4 z-20">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex gap-3">
-            <div className="flex-1 relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-mono text-sm">
-                {'>'}
-              </div>
+      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent px-6 py-6 z-20">
+        <div className="max-w-3xl mx-auto">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="card p-2 flex gap-2 items-end">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="describe your creation..."
-                className="w-full bg-black border border-cyan-500/30 rounded-lg pl-8 pr-12 py-3 text-sm font-mono resize-none focus:outline-none focus:border-cyan-400 placeholder:text-cyan-400/30 text-cyan-100"
+                placeholder="Tell me what you want to build~ ✨"
+                className="flex-1 input-kawaii resize-none min-h-[52px] max-h-[150px] border-0 bg-transparent"
                 rows={1}
                 disabled={isLoading}
+                style={{ 
+                  height: 'auto',
+                  overflow: 'hidden'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 150) + 'px';
+                }}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-cyan-400 text-black rounded hover:bg-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-kawaii p-3 rounded-xl flex items-center justify-center shrink-0"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               </button>
             </div>
           </form>
-          <p className="text-xs text-cyan-400/50 text-center mt-3 font-mono">
-            <Sparkles className="w-3 h-3 inline mr-1" />
-            POWERED BY AI // DEPLOYED TO VERCEL // ©2000 FUTURE_TECH
+          <p className="text-center text-xs text-purple-300 mt-3 flex items-center justify-center gap-2">
+            <Heart className="w-3 h-3 fill-pink-300 text-pink-300" />
+            Made with love • Powered by AI
+            <Heart className="w-3 h-3 fill-pink-300 text-pink-300" />
           </p>
         </div>
       </footer>

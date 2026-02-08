@@ -4,115 +4,83 @@
   <meta charset="utf-8">
   <style>
     * { margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body { background: transparent; overflow: hidden; }
     canvas { display: block; }
-    #debug { position: fixed; top: 0; left: 0; color: red; font-size: 10px; z-index: 1000; display: none; }
   </style>
 </head>
 <body>
-  <div id="debug"></div>
   <canvas id="canvas"></canvas>
   
-  <!-- Load scripts in correct order -->
   <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
   
   <script>
-    const debug = document.getElementById('debug');
-    function log(msg) {
-      console.log(msg);
-      debug.style.display = 'block';
-      debug.textContent += msg + '\n';
-    }
-
-    // Wait for everything to load
     window.addEventListener('load', async () => {
-      log('Window loaded');
-      
-      // Check if libraries are available
-      if (typeof PIXI === 'undefined') {
-        log('ERROR: PIXI not loaded');
+      if (typeof PIXI === 'undefined' || !PIXI.live2d) {
+        console.error('Libraries not loaded');
         return;
       }
-      if (!PIXI.live2d) {
-        log('ERROR: pixi-live2d-display not loaded');
-        return;
-      }
-      
-      log('Libraries OK');
 
       const canvas = document.getElementById('canvas');
+      const canvasWidth = 350;
+      const canvasHeight = 500;
+      
       const app = new PIXI.Application({
         view: canvas,
-        width: 400,
-        height: 500,
+        width: canvasWidth,
+        height: canvasHeight,
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       });
-      
-      log('PIXI app created');
 
       try {
-        // Use absolute URL to ensure correct path resolution
         const modelUrl = window.location.href.replace('viewer.html', 'model.model3.json');
-        log('Loading model from: ' + modelUrl);
         
         const model = await PIXI.live2d.Live2DModel.from(modelUrl, {
           autoInteract: false,
           autoUpdate: true,
         });
         
-        log('Model loaded successfully!');
-        
-        // Get the model's natural size
-        const modelWidth = model.internalModel.width;
-        const modelHeight = model.internalModel.height;
-        log('Model size: ' + modelWidth + 'x' + modelHeight);
-        
-        // Scale to fit canvas
-        const scale = Math.min(400 / modelWidth, 500 / modelHeight) * 0.8;
+        // Model is 5264x10707 (very tall full body)
+        // Scale to show nice upper body portrait
+        const scale = 0.095;
         model.scale.set(scale);
         
-        // Center the model
-        model.anchor.set(0.5, 0.5);
-        model.position.set(200, 280);
+        // At scale 0.095: ~500x1017
+        // Position so she comes up from bottom - anchor at top of her head area
+        // The model's center seems to be around chest level
+        model.anchor.set(0.5, 0.35);
+        model.position.set(canvasWidth / 2, canvasHeight + 50);
         
         app.stage.addChild(model);
-        log('Model added to stage');
         
-        // Hide debug once working
-        debug.style.display = 'none';
+        // Mouse tracking
+        document.addEventListener('mousemove', (e) => {
+          model.focus(e.clientX, e.clientY);
+        });
         
-        // Mouse tracking - track from parent window if in iframe
-        const trackMouse = (e) => {
-          const rect = canvas.getBoundingClientRect();
-          // Convert to model-relative coordinates
-          model.focus(e.clientX - rect.left, e.clientY - rect.top);
-        };
-        
-        document.addEventListener('mousemove', trackMouse);
+        // Track from parent window 
         window.addEventListener('message', (e) => {
           if (e.data?.type === 'mousemove') {
             model.focus(e.data.x, e.data.y);
           }
         });
 
-        // Click for random expression
+        // Click for expression
         document.addEventListener('click', () => {
-          const expressions = model.internalModel.motionManager?.expressionManager?.definitions;
-          if (expressions && expressions.length > 0) {
-            model.expression(Math.floor(Math.random() * expressions.length));
+          const exprs = model.internalModel.motionManager?.expressionManager?.definitions;
+          if (exprs?.length) {
+            model.expression(Math.floor(Math.random() * exprs.length));
           }
         });
 
-        // Notify parent
         window.parent.postMessage({ type: 'live2d-loaded' }, '*');
         
       } catch (err) {
-        log('ERROR loading model: ' + err.message);
-        console.error('Full error:', err);
+        console.error('Live2D error:', err);
         window.parent.postMessage({ type: 'live2d-error', error: err.message }, '*');
       }
     });

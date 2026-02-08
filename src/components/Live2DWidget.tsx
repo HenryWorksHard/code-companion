@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface Live2DWidgetProps {
   fallback?: React.ReactNode;
@@ -8,6 +8,7 @@ interface Live2DWidgetProps {
 
 export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -21,6 +22,19 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
 
     window.addEventListener('message', handleMessage);
 
+    // Forward mouse events to iframe
+    const handleMouseMove = (e: MouseEvent) => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'mousemove',
+          x: e.clientX,
+          y: e.clientY,
+        }, '*');
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+
     // Timeout fallback
     const timeout = setTimeout(() => {
       if (status === 'loading') {
@@ -30,18 +44,25 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
 
     return () => {
       window.removeEventListener('message', handleMessage);
+      document.removeEventListener('mousemove', handleMouseMove);
       clearTimeout(timeout);
     };
   }, [status]);
 
+  // If error, show fallback (SVG companion)
+  if (status === 'error' && fallback) {
+    return <>{fallback}</>;
+  }
+
   return (
     <div
-      className="fixed bottom-0 right-4 z-50 pointer-events-auto"
-      style={{ width: 350, height: 450 }}
+      className="fixed bottom-0 right-0 z-50 pointer-events-none"
+      style={{ width: 350, height: 500 }}
     >
       <iframe
+        ref={iframeRef}
         src="/live2d/viewer.html"
-        className="w-full h-full border-0"
+        className="w-full h-full border-0 pointer-events-auto"
         style={{
           background: 'transparent',
         }}
