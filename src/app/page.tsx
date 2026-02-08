@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Rocket, Code, Loader2 } from 'lucide-react';
+import AnimeCompanion from '@/components/AnimeCompanion';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -145,6 +146,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
+      {/* Anime Companion */}
+      <AnimeCompanion />
+      
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
