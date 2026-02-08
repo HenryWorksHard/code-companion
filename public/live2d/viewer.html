@@ -61,11 +61,8 @@
         const headScale = 0.068;
         headModel.scale.set(headScale);
         headModel.anchor.set(0.5, 0.5);
-        // Head positioned - trying Y=350 to get it on screen
-        headModel.position.set(canvasWidth / 2, 350);
-        
-        console.log('Head model loaded', headModel.width, headModel.height);
-        console.log('Body model loaded', bodyModel.width, bodyModel.height);
+        // Head positioned to connect with body neck
+        headModel.position.set(canvasWidth / 2, 385);
         
         // Add body first, then head on top
         app.stage.addChild(bodyModel);
