@@ -10,6 +10,12 @@ const Live2DCompanion = dynamic(() => import('@/components/Live2DCompanion'), {
   loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
 });
 
+// Real Live2D model component
+const Live2DCharacter = dynamic(() => import('@/components/Live2DCharacter'), {
+  ssr: false,
+  loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
+});
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -195,8 +201,15 @@ export default function Home() {
       {/* CRT Overlay */}
       <div className="crt-overlay" />
       
-      {/* Live2D Companion */}
-      <Live2DCompanion />
+      {/* Live2D Character - Place model files in public/live2d/ */}
+      {/* Expects: model.json (or model3.json), textures, moc file */}
+      <Live2DCharacter 
+        modelPath="/live2d/model.json"
+        width={350}
+        height={450}
+        scale={0.3}
+        position={{ x: 20, y: 0 }}
+      />
 
       {/* Header */}
       <header className="border-b border-cyan-500/30 px-6 py-4 relative z-10">
