@@ -1,8 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Rocket, Code, Loader2 } from 'lucide-react';
-import AnimeCompanion from '@/components/AnimeCompanion';
+import { Send, Sparkles, Rocket, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Live2D
+const Live2DCompanion = dynamic(() => import('@/components/Live2DCompanion'), {
+  ssr: false,
+  loading: () => <div className="fixed bottom-0 right-0 w-[300px] h-[400px]" />,
+});
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,11 +22,38 @@ interface DeploymentStatus {
   error?: string;
 }
 
+// Matrix rain characters
+const matrixChars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+
+function MatrixRain() {
+  const columns = 20;
+  
+  return (
+    <div className="matrix-bg">
+      {Array.from({ length: columns }).map((_, i) => (
+        <div
+          key={i}
+          className="matrix-column"
+          style={{
+            left: `${(i / columns) * 100}%`,
+            animationDuration: `${10 + Math.random() * 10}s`,
+            animationDelay: `${Math.random() * 5}s`,
+          }}
+        >
+          {Array.from({ length: 30 }).map((_, j) => (
+            <div key={j}>{matrixChars[Math.floor(Math.random() * matrixChars.length)]}</div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hey there! 👋 I'm your Code Companion. Tell me about the app or website you want to build, and I'll create it for you!\n\nJust describe what you're imagining - it can be a landing page, a simple tool, a portfolio, anything! I'll ask a few questions to make sure I get it right, then build and deploy it for you.",
+      content: ">> SYSTEM ONLINE <<\n\nHey there, coder! 💾 I'm your Y2K Code Companion.\n\nTell me what you want to build and I'll compile it into reality. Websites, apps, landing pages — just describe your vision!",
       timestamp: new Date(),
     },
   ]);
@@ -28,7 +61,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [deployment, setDeployment] = useState<DeploymentStatus>({ status: 'idle' });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,7 +110,6 @@ export default function Home() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Check if we should deploy
       if (data.shouldDeploy && data.code) {
         setDeployment({ status: 'deploying' });
         
@@ -98,12 +129,11 @@ export default function Home() {
         } else {
           setDeployment({ status: 'complete', url: deployData.url });
           
-          // Add deployment success message
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `🚀 **Your app is live!**\n\n[${deployData.url}](${deployData.url})\n\nClick the link above to see your creation! Let me know if you'd like any changes.`,
+              content: `>> DEPLOYMENT COMPLETE <<\n\n🚀 Your creation is LIVE!\n\n${deployData.url}\n\nClick the link to see it in action!`,
               timestamp: new Date(),
             },
           ]);
@@ -115,7 +145,7 @@ export default function Home() {
         ...prev,
         {
           role: 'assistant',
-          content: "Oops! Something went wrong. Let's try that again - what would you like to build?",
+          content: ">> ERROR << System malfunction! Let's try that again — what would you like to build?",
           timestamp: new Date(),
         },
       ]);
@@ -132,33 +162,57 @@ export default function Home() {
   };
 
   const formatMessage = (content: string) => {
-    // Simple markdown-like formatting
-    return content
-      .split('\n')
-      .map((line, i) => {
-        // Bold
-        line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Links
-        line = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-yellow-400 hover:underline">$1</a>');
-        return <p key={i} className="mb-2" dangerouslySetInnerHTML={{ __html: line }} />;
-      });
+    return content.split('\n').map((line, i) => {
+      const isHeader = line.startsWith('>>');
+      const isLink = line.startsWith('http');
+      
+      if (isHeader) {
+        return <p key={i} className="text-cyan-400 font-bold neon-cyan mb-2">{line}</p>;
+      }
+      if (isLink) {
+        return (
+          <a
+            key={i}
+            href={line}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-magenta-400 hover:underline block mb-2"
+            style={{ color: '#ff00ff', textShadow: '0 0 5px #ff00ff' }}
+          >
+            {line}
+          </a>
+        );
+      }
+      return <p key={i} className="mb-1">{line}</p>;
+    });
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
-      {/* Anime Companion */}
-      <AnimeCompanion />
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col relative overflow-hidden">
+      {/* Matrix Background */}
+      <MatrixRain />
       
+      {/* CRT Overlay */}
+      <div className="crt-overlay" />
+      
+      {/* Live2D Companion */}
+      <Live2DCompanion />
+
       {/* Header */}
-      <header className="border-b border-zinc-800 px-6 py-4">
+      <header className="border-b border-cyan-500/30 px-6 py-4 relative z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
-              <Code className="w-5 h-5 text-zinc-900" />
+            <div className="w-12 h-12 bg-black border-2 border-cyan-400 rounded-lg flex items-center justify-center relative">
+              <span className="text-2xl">💾</span>
+              <div className="absolute inset-0 border border-cyan-400/50 rounded-lg animate-pulse" />
             </div>
             <div>
-              <h1 className="font-bold text-lg">Code Companion</h1>
-              <p className="text-xs text-zinc-500">Build apps with AI</p>
+              <h1 className="font-bold text-xl tracking-wider">
+                <span className="neon-cyan">CODE</span>
+                <span className="text-white">_</span>
+                <span className="neon-magenta" style={{ color: '#ff00ff' }}>COMPANION</span>
+              </h1>
+              <p className="text-xs text-cyan-400/70 font-mono">v2.0.0.0 // BUILD.DEPLOY.REPEAT</p>
             </div>
           </div>
           {deployment.status === 'complete' && deployment.url && (
@@ -166,18 +220,19 @@ export default function Home() {
               href={deployment.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-black border border-lime-400 text-lime-400 rounded hover:bg-lime-400/10 transition-colors font-mono text-sm"
+              style={{ textShadow: '0 0 5px #00ff00' }}
             >
               <Rocket className="w-4 h-4" />
-              View Live App
+              VIEW_LIVE
             </a>
           )}
         </div>
       </header>
 
       {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
+      <main className="flex-1 overflow-y-auto relative z-10">
+        <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
           <div className="space-y-6">
             {messages.map((message, index) => (
               <div
@@ -185,35 +240,31 @@ export default function Home() {
                 className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-10 h-10 border-2 rounded flex items-center justify-center shrink-0 ${
                     message.role === 'assistant'
-                      ? 'bg-gradient-to-br from-yellow-400 to-orange-500'
-                      : 'bg-zinc-800'
+                      ? 'border-cyan-400 bg-cyan-400/10'
+                      : 'border-magenta-400 bg-magenta-400/10'
                   }`}
+                  style={{ borderColor: message.role === 'user' ? '#ff00ff' : '#00ffff' }}
                 >
-                  {message.role === 'assistant' ? (
-                    <Bot className="w-5 h-5 text-zinc-900" />
-                  ) : (
-                    <User className="w-5 h-5 text-zinc-400" />
-                  )}
+                  <span className="text-lg">{message.role === 'assistant' ? '🤖' : '👤'}</span>
                 </div>
                 <div
-                  className={`flex-1 ${
-                    message.role === 'user' ? 'text-right' : ''
-                  }`}
+                  className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}
                 >
                   <div
-                    className={`inline-block max-w-[85%] px-4 py-3 rounded-2xl ${
+                    className={`inline-block max-w-[85%] px-4 py-3 rounded-lg font-mono text-sm ${
                       message.role === 'assistant'
-                        ? 'bg-zinc-900 text-left'
-                        : 'bg-yellow-500 text-zinc-900'
+                        ? 'bg-black/80 border border-cyan-500/30 text-left'
+                        : 'bg-black/80 border border-magenta-500/30'
                     }`}
+                    style={{ borderColor: message.role === 'user' ? 'rgba(255,0,255,0.3)' : 'rgba(0,255,255,0.3)' }}
                   >
-                    <div className="text-sm leading-relaxed">
+                    <div className="leading-relaxed">
                       {formatMessage(message.content)}
                     </div>
                   </div>
-                  <p className="text-xs text-zinc-600 mt-1">
+                  <p className="text-xs text-cyan-400/50 mt-1 font-mono">
                     {message.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -225,16 +276,16 @@ export default function Home() {
 
             {isLoading && (
               <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-zinc-900" />
+                <div className="w-10 h-10 border-2 border-cyan-400 bg-cyan-400/10 rounded flex items-center justify-center">
+                  <span className="text-lg">🤖</span>
                 </div>
-                <div className="bg-zinc-900 px-4 py-3 rounded-2xl">
-                  <div className="flex items-center gap-2 text-zinc-400">
+                <div className="bg-black/80 border border-cyan-500/30 px-4 py-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-cyan-400 font-mono text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">
+                    <span>
                       {deployment.status === 'deploying'
-                        ? 'Deploying your app...'
-                        : 'Thinking...'}
+                        ? '>> DEPLOYING...'
+                        : '>> COMPILING...'}
                     </span>
                   </div>
                 </div>
@@ -247,32 +298,34 @@ export default function Home() {
       </main>
 
       {/* Input Area */}
-      <footer className="border-t border-zinc-800 px-6 py-4">
+      <footer className="fixed bottom-0 left-0 right-0 border-t border-cyan-500/30 bg-[#0a0a0f]/95 backdrop-blur px-6 py-4 z-20">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-3">
             <div className="flex-1 relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-mono text-sm">
+                {'>'}
+              </div>
               <textarea
-                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe the app you want to build..."
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm resize-none focus:outline-none focus:border-yellow-500/50 placeholder:text-zinc-600"
+                placeholder="describe your creation..."
+                className="w-full bg-black border border-cyan-500/30 rounded-lg pl-8 pr-12 py-3 text-sm font-mono resize-none focus:outline-none focus:border-cyan-400 placeholder:text-cyan-400/30 text-cyan-100"
                 rows={1}
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-yellow-500 text-zinc-900 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-cyan-400 text-black rounded hover:bg-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
           </form>
-          <p className="text-xs text-zinc-600 text-center mt-3">
+          <p className="text-xs text-cyan-400/50 text-center mt-3 font-mono">
             <Sparkles className="w-3 h-3 inline mr-1" />
-            Powered by Claude AI • Apps deploy to Vercel
+            POWERED BY AI // DEPLOYED TO VERCEL // ©2000 FUTURE_TECH
           </p>
         </div>
       </footer>
