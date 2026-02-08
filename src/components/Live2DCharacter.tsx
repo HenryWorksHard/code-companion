@@ -32,8 +32,21 @@ export default function Live2DCharacter({
 
     let mounted = true;
 
+    // Timeout fallback after 10 seconds
+    const timeout = setTimeout(() => {
+      if (mounted && !isLoaded) {
+        console.warn('Live2D load timeout, using fallback');
+        setError('Load timeout');
+        setUseFallback(true);
+      }
+    }, 10000);
+
     const initLive2D = async () => {
       try {
+        // Check if Cubism SDK is loaded
+        if (!(window as any).Live2DCubismCore) {
+          throw new Error('Cubism Core SDK not loaded');
+        }
         // Dynamically import to avoid SSR issues
         const PIXI = await import('pixi.js');
         const { Live2DModel } = await import('pixi-live2d-display/cubism4');
@@ -106,6 +119,7 @@ export default function Live2DCharacter({
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       if (modelRef.current?._mouseCleanup) {
         modelRef.current._mouseCleanup();
       }
@@ -118,7 +132,7 @@ export default function Live2DCharacter({
         appRef.current = null;
       }
     };
-  }, [modelPath, width, height, scale]);
+  }, [modelPath, width, height, scale, isLoaded]);
 
   const handleClick = () => {
     if (modelRef.current) {
