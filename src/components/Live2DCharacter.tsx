@@ -36,7 +36,7 @@ export default function Live2DCharacter({
       try {
         // Dynamically import to avoid SSR issues
         const PIXI = await import('pixi.js');
-        const { Live2DModel } = await import('pixi-live2d-display');
+        const { Live2DModel } = await import('pixi-live2d-display/cubism4');
 
         // Register PIXI globally (required by pixi-live2d-display)
         (window as any).PIXI = PIXI;

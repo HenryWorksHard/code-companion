@@ -20,6 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Cubism 4 Core SDK - required for Live2D Cubism 4 models */}
+        <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" />
+      </head>
       <body className="antialiased bg-zinc-950 text-white">
         {children}
       </body>
