@@ -109,7 +109,6 @@ export default function Home() {
   const [deployment, setDeployment] = useState<DeploymentStatus>({ status: 'idle' });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [previewCode, setPreviewCode] = useState<string>('');
-  const [showPreview, setShowPreview] = useState(false);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const live2dRef = useRef<Live2DWidgetRef>(null);
@@ -194,10 +193,9 @@ export default function Home() {
       // Speak the response
       speakMessage(data.message);
 
-      // If there's code, show preview
+      // If there's code, update preview
       if (data.code) {
         setPreviewCode(data.code);
-        setShowPreview(true);
       }
 
       if (data.shouldDeploy && data.code) {
@@ -290,47 +288,28 @@ export default function Home() {
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       {/* Kawaii Background */}
       <KawaiiBackground />
-      
-      {/* Live2D Widget */}
-      <Live2DWidget ref={live2dRef} fallback={<Live2DCompanion />} />
 
       {/* Header */}
-      <header className="px-6 py-4 relative z-10">
-        <div className={`mx-auto ${showPreview && !previewFullscreen ? 'max-w-6xl' : 'max-w-3xl'}`}>
-          <div className="card px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center shadow-lg pulse-glow">
-                <Wand2 className="w-7 h-7 text-white" />
+      <header className="px-4 py-3 relative z-10">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="card px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center shadow-lg pulse-glow">
+                <Wand2 className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-2xl">
+                <h1 className="font-bold text-lg">
                   <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
                     Code Companion
                   </span>
                 </h1>
-                <p className="text-sm text-purple-400 flex items-center gap-1">
+                <p className="text-xs text-purple-400 flex items-center gap-1">
                   <Star className="w-3 h-3 fill-current" />
                   Build amazing things with AI magic~
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Preview Toggle */}
-              {previewCode && (
-                <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className={`p-2 rounded-xl transition-all flex items-center gap-1 ${
-                    showPreview 
-                      ? 'bg-purple-100 text-purple-500 hover:bg-purple-200' 
-                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                  }`}
-                  title={showPreview ? 'Hide preview' : 'Show preview'}
-                >
-                  <Eye className="w-5 h-5" />
-                  <span className="text-xs hidden sm:inline">Preview</span>
-                </button>
-              )}
-              
               {/* Voice Toggle */}
               <button
                 onClick={toggleVoice}
@@ -341,7 +320,7 @@ export default function Home() {
                 }`}
                 title={voiceEnabled ? 'Voice on' : 'Voice off'}
               >
-                {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
               
               {deployment.status === 'complete' && deployment.url && (
@@ -349,7 +328,7 @@ export default function Home() {
                   href={deployment.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-kawaii flex items-center gap-2 text-sm"
+                  className="btn-kawaii flex items-center gap-2 text-sm px-3 py-2"
                 >
                   <Rocket className="w-4 h-4" />
                   View Live ✨
@@ -360,94 +339,133 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content - Split View */}
-      <div className={`flex-1 flex relative z-10 ${showPreview && !previewFullscreen ? 'gap-4 px-6' : ''}`}>
-        {/* Chat Area */}
-        <main className={`flex-1 overflow-y-auto px-6 ${showPreview && !previewFullscreen ? 'max-w-[50%] px-0' : ''}`}>
-          <div className={`mx-auto py-6 pb-40 ${showPreview && !previewFullscreen ? 'max-w-none' : 'max-w-3xl'}`}>
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex gap-3 fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {/* Avatar */}
+      {/* Main Content - Three Column Layout: Chat | Character | Preview */}
+      <div className="flex-1 flex relative z-10 px-4 gap-4 max-w-[1800px] mx-auto w-full">
+        {/* Chat Area - Left */}
+        <div className="w-[38%] flex flex-col min-w-0">
+          <div className="flex-1 overflow-y-auto">
+            <div className="py-4 pb-32">
+              <div className="space-y-3">
+                {messages.map((message, index) => (
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                      message.role === 'assistant'
-                        ? 'bg-gradient-to-br from-pink-300 to-purple-300'
-                        : 'bg-gradient-to-br from-purple-400 to-pink-400'
-                    }`}
+                    key={index}
+                    className={`flex gap-2 fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <span className="text-lg">{message.role === 'assistant' ? '🌸' : '💜'}</span>
-                  </div>
-                  
-                  {/* Message Bubble */}
-                  <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                    {/* Avatar */}
                     <div
-                      className={`inline-block max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                         message.role === 'assistant'
-                          ? 'bubble-assistant text-left shadow-sm'
-                          : 'bubble-user'
+                          ? 'bg-gradient-to-br from-pink-300 to-purple-300'
+                          : 'bg-gradient-to-br from-purple-400 to-pink-400'
                       }`}
                     >
-                      {formatMessage(message.content)}
+                      <span className="text-sm">{message.role === 'assistant' ? '🌸' : '💜'}</span>
                     </div>
-                    <p className="text-xs text-purple-300 mt-1.5 px-1">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Loading indicator */}
-              {isLoading && (
-                <div className="flex gap-3 fade-in-up">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
-                    <span className="text-lg">🌸</span>
-                  </div>
-                  <div className="bubble-assistant px-5 py-4 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      {deployment.status === 'deploying' ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
-                          <span className="text-purple-400">Deploying your creation~</span>
-                          <Sparkles className="w-4 h-4 text-pink-400" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex gap-1">
-                            <div className="typing-dot" />
-                            <div className="typing-dot" />
-                            <div className="typing-dot" />
-                          </div>
-                          <span className="text-purple-400 ml-2">Thinking...</span>
-                        </>
-                      )}
+                    
+                    {/* Message Bubble */}
+                    <div className={`flex-1 min-w-0 ${message.role === 'user' ? 'text-right' : ''}`}>
+                      <div
+                        className={`inline-block max-w-[90%] px-4 py-2 text-sm leading-relaxed ${
+                          message.role === 'assistant'
+                            ? 'bubble-assistant text-left shadow-sm'
+                            : 'bubble-user'
+                        }`}
+                      >
+                        {formatMessage(message.content)}
+                      </div>
+                      <p className="text-[10px] text-purple-300 mt-1 px-1">
+                        {message.timestamp.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
+                ))}
 
-              <div ref={messagesEndRef} />
+                {/* Loading indicator */}
+                {isLoading && (
+                  <div className="flex gap-2 fade-in-up">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
+                      <span className="text-sm">🌸</span>
+                    </div>
+                    <div className="bubble-assistant px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        {deployment.status === 'deploying' ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin text-pink-500" />
+                            <span className="text-purple-400 text-sm">Deploying~</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex gap-1">
+                              <div className="typing-dot" />
+                              <div className="typing-dot" />
+                              <div className="typing-dot" />
+                            </div>
+                            <span className="text-purple-400 ml-1 text-sm">Thinking...</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
             </div>
           </div>
-        </main>
 
-        {/* Preview Panel */}
-        {showPreview && previewCode && !previewFullscreen && (
-          <div className="w-[50%] py-6 pr-6">
-            <div className="card h-full flex flex-col overflow-hidden">
-              <div className="px-4 py-3 border-b border-pink-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
-                <div className="flex items-center gap-2">
-                  <Code className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-600">Live Preview</span>
-                </div>
-                <div className="flex items-center gap-1">
+          {/* Input Area - Bottom of Chat */}
+          <div className="pb-4">
+            <form onSubmit={handleSubmit} className="relative">
+              <div className="card p-2 flex gap-2 items-end">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Tell me what you want to build~ ✨"
+                  className="flex-1 input-kawaii resize-none min-h-[44px] max-h-[120px] border-0 bg-transparent text-sm"
+                  rows={1}
+                  disabled={isLoading}
+                  style={{ 
+                    height: 'auto',
+                    overflow: 'hidden'
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="btn-kawaii p-2.5 rounded-xl flex items-center justify-center shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Character - Center */}
+        <div className="w-[24%] relative flex items-end justify-center">
+          <Live2DWidget ref={live2dRef} fallback={<Live2DCompanion />} />
+        </div>
+
+        {/* Preview Panel - Right */}
+        <div className="w-[38%] py-4 flex flex-col min-w-0">
+          <div className="card flex-1 flex flex-col overflow-hidden">
+            <div className="px-3 py-2 border-b border-pink-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
+              <div className="flex items-center gap-2">
+                <Code className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium text-purple-600">Live Preview</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {previewCode && (
                   <button
                     onClick={() => setPreviewFullscreen(true)}
                     className="p-1.5 hover:bg-white rounded-lg transition-colors"
@@ -455,26 +473,29 @@ export default function Home() {
                   >
                     <Maximize2 className="w-4 h-4 text-purple-400" />
                   </button>
-                  <button
-                    onClick={() => setShowPreview(false)}
-                    className="p-1.5 hover:bg-white rounded-lg transition-colors"
-                    title="Close preview"
-                  >
-                    <X className="w-4 h-4 text-purple-400" />
-                  </button>
-                </div>
+                )}
               </div>
-              <div className="flex-1 bg-white">
+            </div>
+            <div className="flex-1 bg-white relative">
+              {previewCode ? (
                 <iframe
                   ref={previewIframeRef}
                   className="w-full h-full border-0"
                   title="Code Preview"
                   sandbox="allow-scripts"
                 />
-              </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-purple-300">
+                  <div className="text-center">
+                    <Eye className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">Your preview will appear here~</p>
+                    <p className="text-xs mt-1 opacity-70">Ask me to build something! ✨</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Fullscreen Preview Modal */}
@@ -495,12 +516,9 @@ export default function Home() {
                   <Minimize2 className="w-4 h-4 text-purple-400" />
                 </button>
                 <button
-                  onClick={() => {
-                    setPreviewFullscreen(false);
-                    setShowPreview(false);
-                  }}
+                  onClick={() => setPreviewFullscreen(false)}
                   className="p-1.5 hover:bg-white rounded-lg transition-colors"
-                  title="Close preview"
+                  title="Close"
                 >
                   <X className="w-4 h-4 text-purple-400" />
                 </button>
@@ -508,7 +526,6 @@ export default function Home() {
             </div>
             <div className="flex-1 bg-white">
               <iframe
-                ref={previewFullscreen ? previewIframeRef : undefined}
                 srcDoc={generatePreviewHtml(previewCode)}
                 className="w-full h-full border-0"
                 title="Code Preview Fullscreen"
@@ -519,45 +536,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* Input Area */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent px-6 py-6 z-20">
-        <div className={`mx-auto ${showPreview && !previewFullscreen ? 'max-w-6xl' : 'max-w-3xl'}`}>
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="card p-2 flex gap-2 items-end">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Tell me what you want to build~ ✨"
-                className="flex-1 input-kawaii resize-none min-h-[52px] max-h-[150px] border-0 bg-transparent"
-                rows={1}
-                disabled={isLoading}
-                style={{ 
-                  height: 'auto',
-                  overflow: 'hidden'
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 150) + 'px';
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="btn-kawaii p-3 rounded-xl flex items-center justify-center shrink-0"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </form>
-          <p className="text-center text-xs text-purple-300 mt-3 flex items-center justify-center gap-2">
-            <Heart className="w-3 h-3 fill-pink-300 text-pink-300" />
-            Made with love • Powered by AI
-            <Heart className="w-3 h-3 fill-pink-300 text-pink-300" />
-          </p>
-        </div>
-      </footer>
+      {/* Footer */}
+      <div className="px-4 py-2 relative z-10">
+        <p className="text-center text-[10px] text-purple-300 flex items-center justify-center gap-2">
+          <Heart className="w-2.5 h-2.5 fill-pink-300 text-pink-300" />
+          Made with love • Powered by AI
+          <Heart className="w-2.5 h-2.5 fill-pink-300 text-pink-300" />
+        </p>
+      </div>
     </div>
   );
 }

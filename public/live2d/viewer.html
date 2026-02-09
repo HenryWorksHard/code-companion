@@ -24,8 +24,8 @@
       }
 
       const canvas = document.getElementById('canvas');
-      const canvasWidth = 400;
-      const canvasHeight = 750;
+      const canvasWidth = 350;
+      const canvasHeight = 650;
       
       const app = new PIXI.Application({
         view: canvas,
@@ -52,16 +52,16 @@
         });
         
         // Scale and position body
-        const bodyScale = 0.068;
+        const bodyScale = 0.058;
         bodyModel.scale.set(bodyScale);
         bodyModel.anchor.set(0.5, 0.5);
-        bodyModel.position.set(canvasWidth / 2, canvasHeight / 2 + 50);
+        bodyModel.position.set(canvasWidth / 2, canvasHeight / 2 + 40);
         
         // Scale and position head (sits on top of body)
-        const headScale = 0.068;
+        const headScale = 0.058;
         headModel.scale.set(headScale);
         headModel.anchor.set(0.5, 0.5);
-        headModel.position.set(canvasWidth / 2, 438);
+        headModel.position.set(canvasWidth / 2, 380);
         
         // Add body first, then head on top
         app.stage.addChild(bodyModel);

@@ -85,10 +85,10 @@ const Live2DWidget = forwardRef<Live2DWidgetRef, Live2DWidgetProps>(({ fallback 
 
   return (
     <div
-      className="fixed bottom-0 right-0 z-50 pointer-events-none transition-opacity duration-500"
+      className="absolute bottom-0 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-opacity duration-500"
       style={{ 
-        width: 400, 
-        height: 750,
+        width: 350,
+        height: 650,
         opacity: status === 'loaded' ? 1 : 0.7,
       }}
     >
@@ -114,31 +114,11 @@ const Live2DWidget = forwardRef<Live2DWidgetRef, Live2DWidgetProps>(({ fallback 
       
       {/* Speaking indicator */}
       {isSpeaking && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-pink-100 rounded-full text-xs text-pink-500 pointer-events-none flex items-center gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-pink-100 rounded-full text-xs text-pink-500 pointer-events-none flex items-center gap-2 z-20">
           <span className="w-2 h-2 bg-pink-400 rounded-full animate-pulse" />
           Speaking...
         </div>
       )}
-      
-      {/* Click hint - shows briefly then fades */}
-      {status === 'loaded' && !isSpeaking && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-pink-400 opacity-0 animate-pulse pointer-events-none"
-          style={{
-            animation: 'fade-hint 5s ease-in-out forwards',
-          }}
-        >
-          Click me! 💖
-        </div>
-      )}
-      
-      <style jsx>{`
-        @keyframes fade-hint {
-          0% { opacity: 0; }
-          20% { opacity: 0.8; }
-          80% { opacity: 0.8; }
-          100% { opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 });
