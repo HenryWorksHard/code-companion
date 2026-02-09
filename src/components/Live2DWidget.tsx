@@ -1,14 +1,39 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 
 interface Live2DWidgetProps {
   fallback?: React.ReactNode;
 }
 
-export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
+export interface Live2DWidgetRef {
+  speak: (text: string) => void;
+  stopSpeaking: () => void;
+}
+
+const Live2DWidget = forwardRef<Live2DWidgetRef, Live2DWidgetProps>(({ fallback }, ref) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Expose speak methods to parent
+  useImperativeHandle(ref, () => ({
+    speak: (text: string) => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'speak',
+          text: text,
+        }, '*');
+      }
+    },
+    stopSpeaking: () => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'stop-speaking',
+        }, '*');
+      }
+    },
+  }));
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -17,6 +42,10 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
       } else if (e.data?.type === 'live2d-error') {
         console.error('Live2D error from iframe:', e.data.error);
         setStatus('error');
+      } else if (e.data?.type === 'speech-start') {
+        setIsSpeaking(true);
+      } else if (e.data?.type === 'speech-end' || e.data?.type === 'speech-error') {
+        setIsSpeaking(false);
       }
     };
 
@@ -83,8 +112,16 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
         title="Live2D Character"
       />
       
+      {/* Speaking indicator */}
+      {isSpeaking && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-pink-100 rounded-full text-xs text-pink-500 pointer-events-none flex items-center gap-2">
+          <span className="w-2 h-2 bg-pink-400 rounded-full animate-pulse" />
+          Speaking...
+        </div>
+      )}
+      
       {/* Click hint - shows briefly then fades */}
-      {status === 'loaded' && (
+      {status === 'loaded' && !isSpeaking && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-pink-400 opacity-0 animate-pulse pointer-events-none"
           style={{
             animation: 'fade-hint 5s ease-in-out forwards',
@@ -104,4 +141,8 @@ export default function Live2DWidget({ fallback }: Live2DWidgetProps) {
       `}</style>
     </div>
   );
-}
+});
+
+Live2DWidget.displayName = 'Live2DWidget';
+
+export default Live2DWidget;

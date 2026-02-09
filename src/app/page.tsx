@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Rocket, Loader2, Heart, Star, Wand2 } from 'lucide-react';
+import { Send, Sparkles, Rocket, Loader2, Heart, Star, Wand2, Volume2, VolumeX } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import type { Live2DWidgetRef } from '@/components/Live2DWidget';
 
 // Dynamic import to avoid SSR issues with Live2D
 const Live2DCompanion = dynamic(() => import('@/components/Live2DCompanion'), {
@@ -62,6 +63,15 @@ function KawaiiBackground() {
   );
 }
 
+// Clean text for speech (remove emojis and special chars)
+function cleanTextForSpeech(text: string): string {
+  return text
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+    .replace(/[~*_`#]/g, '')
+    .replace(/\n+/g, '. ')
+    .trim();
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -73,7 +83,9 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [deployment, setDeployment] = useState<DeploymentStatus>({ status: 'idle' });
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const live2dRef = useRef<Live2DWidgetRef>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,9 +95,24 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
+  // Speak the assistant's message
+  const speakMessage = (text: string) => {
+    if (voiceEnabled && live2dRef.current) {
+      const cleanText = cleanTextForSpeech(text);
+      if (cleanText) {
+        live2dRef.current.speak(cleanText);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    // Stop any ongoing speech
+    if (live2dRef.current) {
+      live2dRef.current.stopSpeaking();
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -122,6 +149,9 @@ export default function Home() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Speak the response
+      speakMessage(data.message);
 
       if (data.shouldDeploy && data.code) {
         setDeployment({ status: 'deploying' });
@@ -142,26 +172,33 @@ export default function Home() {
         } else {
           setDeployment({ status: 'complete', url: deployData.url });
           
+          const deployMessage = `Yay! Your creation is live! 🎉✨\n\n${deployData.url}\n\nClick the link to see your beautiful new site~ 💖`;
+          
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `Yay! Your creation is live! 🎉✨\n\n${deployData.url}\n\nClick the link to see your beautiful new site~ 💖`,
+              content: deployMessage,
               timestamp: new Date(),
             },
           ]);
+          
+          // Speak the deploy success message
+          speakMessage(deployMessage);
         }
       }
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage = "Oopsie! Something went wrong... 😢 Let's try that again! What would you like to build? 💪";
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: "Oopsie! Something went wrong... 😢 Let's try that again! What would you like to build? 💪",
+          content: errorMessage,
           timestamp: new Date(),
         },
       ]);
+      speakMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +209,13 @@ export default function Home() {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const toggleVoice = () => {
+    if (voiceEnabled && live2dRef.current) {
+      live2dRef.current.stopSpeaking();
+    }
+    setVoiceEnabled(!voiceEnabled);
   };
 
   const formatMessage = (content: string) => {
@@ -201,7 +245,7 @@ export default function Home() {
       <KawaiiBackground />
       
       {/* Live2D Widget */}
-      <Live2DWidget fallback={<Live2DCompanion />} />
+      <Live2DWidget ref={live2dRef} fallback={<Live2DCompanion />} />
 
       {/* Header */}
       <header className="px-6 py-4 relative z-10">
@@ -223,17 +267,32 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            {deployment.status === 'complete' && deployment.url && (
-              <a
-                href={deployment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-kawaii flex items-center gap-2 text-sm"
+            <div className="flex items-center gap-2">
+              {/* Voice Toggle */}
+              <button
+                onClick={toggleVoice}
+                className={`p-2 rounded-xl transition-all ${
+                  voiceEnabled 
+                    ? 'bg-pink-100 text-pink-500 hover:bg-pink-200' 
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+                title={voiceEnabled ? 'Voice on' : 'Voice off'}
               >
-                <Rocket className="w-4 h-4" />
-                View Live ✨
-              </a>
-            )}
+                {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </button>
+              
+              {deployment.status === 'complete' && deployment.url && (
+                <a
+                  href={deployment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-kawaii flex items-center gap-2 text-sm"
+                >
+                  <Rocket className="w-4 h-4" />
+                  View Live ✨
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </header>

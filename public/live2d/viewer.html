@@ -61,12 +61,97 @@
         const headScale = 0.068;
         headModel.scale.set(headScale);
         headModel.anchor.set(0.5, 0.5);
-        // Head positioned to connect with body neck (centered, raised slightly)
         headModel.position.set(canvasWidth / 2, 438);
         
         // Add body first, then head on top
         app.stage.addChild(bodyModel);
         app.stage.addChild(headModel);
+        
+        // Get the core model for parameter control
+        const coreModel = headModel.internalModel.coreModel;
+        
+        // Lip sync state
+        let isSpeaking = false;
+        let mouthOpenTarget = 0;
+        let currentMouthOpen = 0;
+        
+        // Animate mouth smoothly
+        const animateMouth = () => {
+          // Smooth interpolation
+          currentMouthOpen += (mouthOpenTarget - currentMouthOpen) * 0.3;
+          
+          // Set mouth parameter
+          const paramIndex = coreModel.getParameterIndex('ParamMouthOpenY');
+          if (paramIndex >= 0) {
+            coreModel.setParameterValueByIndex(paramIndex, currentMouthOpen);
+          }
+          
+          requestAnimationFrame(animateMouth);
+        };
+        animateMouth();
+        
+        // Simulate talking animation during speech
+        let talkInterval = null;
+        const startTalking = () => {
+          isSpeaking = true;
+          // Randomize mouth movement to simulate natural speech
+          talkInterval = setInterval(() => {
+            if (isSpeaking) {
+              mouthOpenTarget = 0.3 + Math.random() * 0.7; // Random between 0.3-1.0
+            }
+          }, 100); // Update every 100ms
+        };
+        
+        const stopTalking = () => {
+          isSpeaking = false;
+          if (talkInterval) {
+            clearInterval(talkInterval);
+            talkInterval = null;
+          }
+          mouthOpenTarget = 0;
+        };
+        
+        // Browser Speech Synthesis
+        const speak = (text) => {
+          // Cancel any ongoing speech
+          window.speechSynthesis.cancel();
+          
+          const utterance = new SpeechSynthesisUtterance(text);
+          
+          // Try to find a nice female voice
+          const voices = window.speechSynthesis.getVoices();
+          const femaleVoice = voices.find(v => 
+            v.name.includes('Female') || 
+            v.name.includes('Samantha') || 
+            v.name.includes('Karen') ||
+            v.name.includes('Victoria') ||
+            v.name.includes('Google UK English Female')
+          ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+          
+          if (femaleVoice) {
+            utterance.voice = femaleVoice;
+          }
+          
+          utterance.rate = 1.0;
+          utterance.pitch = 1.1;
+          
+          utterance.onstart = () => {
+            startTalking();
+            window.parent.postMessage({ type: 'speech-start' }, '*');
+          };
+          
+          utterance.onend = () => {
+            stopTalking();
+            window.parent.postMessage({ type: 'speech-end' }, '*');
+          };
+          
+          utterance.onerror = () => {
+            stopTalking();
+            window.parent.postMessage({ type: 'speech-error' }, '*');
+          };
+          
+          window.speechSynthesis.speak(utterance);
+        };
         
         // Smooth mouse tracking with easing
         let targetX = canvasWidth / 2;
@@ -84,11 +169,16 @@
           targetY = e.clientY;
         });
         
-        // Track from parent window 
+        // Handle messages from parent window 
         window.addEventListener('message', (e) => {
           if (e.data?.type === 'mousemove') {
             targetX = e.data.x;
             targetY = e.data.y;
+          } else if (e.data?.type === 'speak') {
+            speak(e.data.text);
+          } else if (e.data?.type === 'stop-speaking') {
+            window.speechSynthesis.cancel();
+            stopTalking();
           }
         });
 
@@ -100,6 +190,9 @@
           }
         });
 
+        // Load voices (needed for some browsers)
+        window.speechSynthesis.getVoices();
+        
         window.parent.postMessage({ type: 'live2d-loaded' }, '*');
         
       } catch (err) {
