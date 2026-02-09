@@ -74,6 +74,7 @@ function cleanTextForSpeech(text: string): string {
 
 // Generate preview HTML from code
 function generatePreviewHtml(code: string): string {
+  if (!code) return '';
   // If it's already full HTML, return as is
   if (code.includes('<!DOCTYPE') || code.includes('<html')) {
     return code;
@@ -96,6 +97,29 @@ function generatePreviewHtml(code: string): string {
 </html>`;
 }
 
+// Extract code from response
+function extractCode(text: string): { message: string; code: string | null; shouldDeploy: boolean; projectName?: string } {
+  const configMatch = text.match(/```DEPLOY_CONFIG\s*([\s\S]*?)```/);
+  
+  if (!configMatch) {
+    return { message: text, code: null, shouldDeploy: false };
+  }
+
+  try {
+    const config = JSON.parse(configMatch[1]);
+    const message = text.replace(/```DEPLOY_CONFIG[\s\S]*?```/, '').trim();
+    
+    return {
+      message: message || "Building your app now! 🚀",
+      code: config.code,
+      shouldDeploy: config.shouldDeploy,
+      projectName: config.projectName,
+    };
+  } catch (e) {
+    return { message: text, code: null, shouldDeploy: false };
+  }
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -109,10 +133,13 @@ export default function Home() {
   const [deployment, setDeployment] = useState<DeploymentStatus>({ status: 'idle' });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [previewCode, setPreviewCode] = useState<string>('');
+  const [liveCode, setLiveCode] = useState<string>('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const live2dRef = useRef<Live2DWidgetRef>(null);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
+  const codeDisplayRef = useRef<HTMLPreElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -134,6 +161,13 @@ export default function Home() {
       }
     }
   }, [previewCode]);
+
+  // Auto-scroll code display
+  useEffect(() => {
+    if (codeDisplayRef.current) {
+      codeDisplayRef.current.scrollTop = codeDisplayRef.current.scrollHeight;
+    }
+  }, [liveCode]);
 
   // Speak the assistant's message
   const speakMessage = (text: string) => {
@@ -163,8 +197,11 @@ export default function Home() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setLiveCode('');
+    setIsGeneratingCode(false);
 
     try {
+      // Use streaming
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,40 +210,101 @@ export default function Home() {
             role: m.role,
             content: m.content,
           })),
+          stream: true,
         }),
       });
 
-      const data = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch');
 
-      if (data.error) {
-        throw new Error(data.error);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader');
+
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let currentCode = '';
+      let inCodeBlock = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                fullContent += parsed.content;
+
+                // Check if we're entering a code block
+                if (fullContent.includes('```DEPLOY_CONFIG') && !inCodeBlock) {
+                  inCodeBlock = true;
+                  setIsGeneratingCode(true);
+                }
+
+                // Extract code being written
+                if (inCodeBlock) {
+                  const codeMatch = fullContent.match(/```DEPLOY_CONFIG\s*\{[\s\S]*?"code"\s*:\s*"([\s\S]*?)(?:"|$)/);
+                  if (codeMatch) {
+                    // Unescape the code string
+                    try {
+                      currentCode = codeMatch[1]
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\\\/g, '\\');
+                      setLiveCode(currentCode);
+                      // Update preview as code comes in
+                      if (currentCode.includes('<')) {
+                        setPreviewCode(currentCode);
+                      }
+                    } catch (e) {
+                      // Partial code, keep going
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              // Parse error, continue
+            }
+          }
+        }
       }
 
+      // Process final response
+      const result = extractCode(fullContent);
+      
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.message,
+        content: result.message,
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      
-      // Speak the response
-      speakMessage(data.message);
+      speakMessage(result.message);
 
-      // If there's code, update preview
-      if (data.code) {
-        setPreviewCode(data.code);
+      if (result.code) {
+        setPreviewCode(result.code);
+        setLiveCode(result.code);
       }
 
-      if (data.shouldDeploy && data.code) {
+      setIsGeneratingCode(false);
+
+      // Handle deployment
+      if (result.shouldDeploy && result.code) {
         setDeployment({ status: 'deploying' });
         
         const deployResponse = await fetch('/api/deploy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            code: data.code,
-            projectName: data.projectName || 'my-app',
+            code: result.code,
+            projectName: result.projectName || 'my-app',
           }),
         });
 
@@ -228,7 +326,6 @@ export default function Home() {
             },
           ]);
           
-          // Speak the deploy success message
           speakMessage(deployMessage);
         }
       }
@@ -244,6 +341,7 @@ export default function Home() {
         },
       ]);
       speakMessage(errorMessage);
+      setIsGeneratingCode(false);
     } finally {
       setIsLoading(false);
     }
@@ -339,7 +437,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content - Three Column Layout: Chat | Character | Preview */}
+      {/* Main Content - Three Column Layout: Chat | Character + Code | Preview */}
       <div className="flex-1 flex relative z-10 px-4 gap-4 max-w-[1800px] mx-auto w-full">
         {/* Chat Area - Left */}
         <div className="w-[38%] flex flex-col min-w-0">
@@ -385,28 +483,35 @@ export default function Home() {
                 ))}
 
                 {/* Loading indicator */}
-                {isLoading && (
+                {isLoading && !isGeneratingCode && (
                   <div className="flex gap-2 fade-in-up">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
                       <span className="text-sm">🌸</span>
                     </div>
                     <div className="bubble-assistant px-4 py-3 shadow-sm">
                       <div className="flex items-center gap-2">
-                        {deployment.status === 'deploying' ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin text-pink-500" />
-                            <span className="text-purple-400 text-sm">Deploying~</span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex gap-1">
-                              <div className="typing-dot" />
-                              <div className="typing-dot" />
-                              <div className="typing-dot" />
-                            </div>
-                            <span className="text-purple-400 ml-1 text-sm">Thinking...</span>
-                          </>
-                        )}
+                        <div className="flex gap-1">
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                        </div>
+                        <span className="text-purple-400 ml-1 text-sm">Thinking...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Coding indicator */}
+                {isGeneratingCode && (
+                  <div className="flex gap-2 fade-in-up">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
+                      <span className="text-sm">🌸</span>
+                    </div>
+                    <div className="bubble-assistant px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin text-pink-500" />
+                        <span className="text-purple-400 text-sm">Writing code...</span>
+                        <Sparkles className="w-3 h-3 text-pink-400" />
                       </div>
                     </div>
                   </div>
@@ -451,8 +556,48 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Character - Center */}
+        {/* Character + Code Panel - Center */}
         <div className="w-[24%] relative flex items-center justify-center">
+          {/* Code Panel Behind Character */}
+          {(isGeneratingCode || liveCode) && (
+            <div 
+              className={`absolute inset-x-0 top-8 bottom-8 bg-gray-900/95 rounded-2xl border border-purple-500/30 shadow-2xl overflow-hidden transition-all duration-500 ${
+                isGeneratingCode ? 'opacity-100' : 'opacity-70'
+              }`}
+              style={{
+                boxShadow: isGeneratingCode ? '0 0 40px rgba(168, 85, 247, 0.3)' : 'none',
+              }}
+            >
+              {/* Code Header */}
+              <div className="px-3 py-2 bg-gray-800/80 border-b border-purple-500/20 flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-[10px] text-purple-300 ml-2 flex items-center gap-1">
+                  <Code className="w-3 h-3" />
+                  index.html
+                </span>
+                {isGeneratingCode && (
+                  <span className="ml-auto text-[10px] text-pink-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-pink-400 rounded-full animate-pulse" />
+                    writing...
+                  </span>
+                )}
+              </div>
+              
+              {/* Code Content */}
+              <pre 
+                ref={codeDisplayRef}
+                className="p-3 text-[9px] leading-relaxed text-green-400 font-mono overflow-auto h-[calc(100%-36px)] scrollbar-thin scrollbar-thumb-purple-500/30"
+              >
+                <code>{liveCode || '// Starting code generation...'}</code>
+              </pre>
+            </div>
+          )}
+          
+          {/* Character */}
           <Live2DWidget ref={live2dRef} fallback={<Live2DCompanion />} />
         </div>
 
@@ -461,8 +606,14 @@ export default function Home() {
           <div className="card flex-1 flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-pink-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
               <div className="flex items-center gap-2">
-                <Code className="w-4 h-4 text-purple-400" />
+                <Eye className="w-4 h-4 text-purple-400" />
                 <span className="text-sm font-medium text-purple-600">Live Preview</span>
+                {isGeneratingCode && (
+                  <span className="text-[10px] text-pink-400 flex items-center gap-1 ml-2">
+                    <span className="w-1.5 h-1.5 bg-pink-400 rounded-full animate-pulse" />
+                    updating...
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 {previewCode && (
