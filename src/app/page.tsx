@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Rocket, Loader2, Heart, Star, Wand2, Volume2, VolumeX } from 'lucide-react';
+import { Send, Sparkles, Rocket, Loader2, Heart, Star, Wand2, Volume2, VolumeX, Code, Eye, X, Maximize2, Minimize2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { Live2DWidgetRef } from '@/components/Live2DWidget';
 
@@ -72,6 +72,30 @@ function cleanTextForSpeech(text: string): string {
     .trim();
 }
 
+// Generate preview HTML from code
+function generatePreviewHtml(code: string): string {
+  // If it's already full HTML, return as is
+  if (code.includes('<!DOCTYPE') || code.includes('<html')) {
+    return code;
+  }
+  
+  // Wrap in basic HTML structure
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  ${code}
+</body>
+</html>`;
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -84,8 +108,12 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [deployment, setDeployment] = useState<DeploymentStatus>({ status: 'idle' });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [previewCode, setPreviewCode] = useState<string>('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const live2dRef = useRef<Live2DWidgetRef>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -94,6 +122,19 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Update preview iframe when code changes
+  useEffect(() => {
+    if (previewCode && previewIframeRef.current) {
+      const iframe = previewIframeRef.current;
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(generatePreviewHtml(previewCode));
+        doc.close();
+      }
+    }
+  }, [previewCode]);
 
   // Speak the assistant's message
   const speakMessage = (text: string) => {
@@ -152,6 +193,12 @@ export default function Home() {
       
       // Speak the response
       speakMessage(data.message);
+
+      // If there's code, show preview
+      if (data.code) {
+        setPreviewCode(data.code);
+        setShowPreview(true);
+      }
 
       if (data.shouldDeploy && data.code) {
         setDeployment({ status: 'deploying' });
@@ -249,7 +296,7 @@ export default function Home() {
 
       {/* Header */}
       <header className="px-6 py-4 relative z-10">
-        <div className="max-w-3xl mx-auto">
+        <div className={`mx-auto ${showPreview && !previewFullscreen ? 'max-w-6xl' : 'max-w-3xl'}`}>
           <div className="card px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center shadow-lg pulse-glow">
@@ -268,6 +315,22 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Preview Toggle */}
+              {previewCode && (
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  className={`p-2 rounded-xl transition-all flex items-center gap-1 ${
+                    showPreview 
+                      ? 'bg-purple-100 text-purple-500 hover:bg-purple-200' 
+                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                  }`}
+                  title={showPreview ? 'Hide preview' : 'Show preview'}
+                >
+                  <Eye className="w-5 h-5" />
+                  <span className="text-xs hidden sm:inline">Preview</span>
+                </button>
+              )}
+              
               {/* Voice Toggle */}
               <button
                 onClick={toggleVoice}
@@ -297,85 +360,168 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto relative z-10 px-6">
-        <div className="max-w-3xl mx-auto py-6 pb-40">
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {/* Avatar */}
+      {/* Main Content - Split View */}
+      <div className={`flex-1 flex relative z-10 ${showPreview && !previewFullscreen ? 'gap-4 px-6' : ''}`}>
+        {/* Chat Area */}
+        <main className={`flex-1 overflow-y-auto px-6 ${showPreview && !previewFullscreen ? 'max-w-[50%] px-0' : ''}`}>
+          <div className={`mx-auto py-6 pb-40 ${showPreview && !previewFullscreen ? 'max-w-none' : 'max-w-3xl'}`}>
+            <div className="space-y-4">
+              {messages.map((message, index) => (
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                    message.role === 'assistant'
-                      ? 'bg-gradient-to-br from-pink-300 to-purple-300'
-                      : 'bg-gradient-to-br from-purple-400 to-pink-400'
-                  }`}
+                  key={index}
+                  className={`flex gap-3 fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <span className="text-lg">{message.role === 'assistant' ? '🌸' : '💜'}</span>
-                </div>
-                
-                {/* Message Bubble */}
-                <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                  {/* Avatar */}
                   <div
-                    className={`inline-block max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                       message.role === 'assistant'
-                        ? 'bubble-assistant text-left shadow-sm'
-                        : 'bubble-user'
+                        ? 'bg-gradient-to-br from-pink-300 to-purple-300'
+                        : 'bg-gradient-to-br from-purple-400 to-pink-400'
                     }`}
                   >
-                    {formatMessage(message.content)}
+                    <span className="text-lg">{message.role === 'assistant' ? '🌸' : '💜'}</span>
                   </div>
-                  <p className="text-xs text-purple-300 mt-1.5 px-1">
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
-
-            {/* Loading indicator */}
-            {isLoading && (
-              <div className="flex gap-3 fade-in-up">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
-                  <span className="text-lg">🌸</span>
-                </div>
-                <div className="bubble-assistant px-5 py-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    {deployment.status === 'deploying' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
-                        <span className="text-purple-400">Deploying your creation~</span>
-                        <Sparkles className="w-4 h-4 text-pink-400" />
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex gap-1">
-                          <div className="typing-dot" />
-                          <div className="typing-dot" />
-                          <div className="typing-dot" />
-                        </div>
-                        <span className="text-purple-400 ml-2">Thinking...</span>
-                      </>
-                    )}
+                  
+                  {/* Message Bubble */}
+                  <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                    <div
+                      className={`inline-block max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${
+                        message.role === 'assistant'
+                          ? 'bubble-assistant text-left shadow-sm'
+                          : 'bubble-user'
+                      }`}
+                    >
+                      {formatMessage(message.content)}
+                    </div>
+                    <p className="text-xs text-purple-300 mt-1.5 px-1">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
 
-            <div ref={messagesEndRef} />
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex gap-3 fade-in-up">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
+                    <span className="text-lg">🌸</span>
+                  </div>
+                  <div className="bubble-assistant px-5 py-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      {deployment.status === 'deploying' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
+                          <span className="text-purple-400">Deploying your creation~</span>
+                          <Sparkles className="w-4 h-4 text-pink-400" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex gap-1">
+                            <div className="typing-dot" />
+                            <div className="typing-dot" />
+                            <div className="typing-dot" />
+                          </div>
+                          <span className="text-purple-400 ml-2">Thinking...</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+        </main>
+
+        {/* Preview Panel */}
+        {showPreview && previewCode && !previewFullscreen && (
+          <div className="w-[50%] py-6 pr-6">
+            <div className="card h-full flex flex-col overflow-hidden">
+              <div className="px-4 py-3 border-b border-pink-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-600">Live Preview</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPreviewFullscreen(true)}
+                    className="p-1.5 hover:bg-white rounded-lg transition-colors"
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="w-4 h-4 text-purple-400" />
+                  </button>
+                  <button
+                    onClick={() => setShowPreview(false)}
+                    className="p-1.5 hover:bg-white rounded-lg transition-colors"
+                    title="Close preview"
+                  >
+                    <X className="w-4 h-4 text-purple-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-white">
+                <iframe
+                  ref={previewIframeRef}
+                  className="w-full h-full border-0"
+                  title="Code Preview"
+                  sandbox="allow-scripts"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Fullscreen Preview Modal */}
+      {previewFullscreen && previewCode && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-8">
+          <div className="bg-white rounded-2xl w-full h-full max-w-6xl flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-4 py-3 border-b border-pink-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
+              <div className="flex items-center gap-2">
+                <Code className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium text-purple-600">Live Preview</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPreviewFullscreen(false)}
+                  className="p-1.5 hover:bg-white rounded-lg transition-colors"
+                  title="Exit fullscreen"
+                >
+                  <Minimize2 className="w-4 h-4 text-purple-400" />
+                </button>
+                <button
+                  onClick={() => {
+                    setPreviewFullscreen(false);
+                    setShowPreview(false);
+                  }}
+                  className="p-1.5 hover:bg-white rounded-lg transition-colors"
+                  title="Close preview"
+                >
+                  <X className="w-4 h-4 text-purple-400" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-white">
+              <iframe
+                ref={previewFullscreen ? previewIframeRef : undefined}
+                srcDoc={generatePreviewHtml(previewCode)}
+                className="w-full h-full border-0"
+                title="Code Preview Fullscreen"
+                sandbox="allow-scripts"
+              />
+            </div>
           </div>
         </div>
-      </main>
+      )}
 
       {/* Input Area */}
       <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent px-6 py-6 z-20">
-        <div className="max-w-3xl mx-auto">
+        <div className={`mx-auto ${showPreview && !previewFullscreen ? 'max-w-6xl' : 'max-w-3xl'}`}>
           <form onSubmit={handleSubmit} className="relative">
             <div className="card p-2 flex gap-2 items-end">
               <textarea
