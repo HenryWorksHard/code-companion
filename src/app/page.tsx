@@ -441,8 +441,8 @@ export default function Home() {
       <div className="flex-1 flex relative z-10 px-4 gap-4 max-w-[1800px] mx-auto w-full">
         {/* Chat Area - Left */}
         <div className="w-[38%] flex flex-col min-w-0">
-          <div className="flex-1 overflow-y-auto">
-            <div className="py-4 pb-32">
+          <div className="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-200px)]">
+            <div className="py-4">
               <div className="space-y-3">
                 {messages.map((message, index) => (
                   <div
