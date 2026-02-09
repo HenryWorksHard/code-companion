@@ -452,7 +452,7 @@ export default function Home() {
         </div>
 
         {/* Character - Center */}
-        <div className="w-[24%] relative flex items-end justify-center">
+        <div className="w-[24%] relative flex items-center justify-center">
           <Live2DWidget ref={live2dRef} fallback={<Live2DCompanion />} />
         </div>
 

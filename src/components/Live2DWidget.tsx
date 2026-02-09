@@ -85,7 +85,7 @@ const Live2DWidget = forwardRef<Live2DWidgetRef, Live2DWidgetProps>(({ fallback 
 
   return (
     <div
-      className="absolute bottom-0 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-opacity duration-500"
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none transition-opacity duration-500"
       style={{ 
         width: 350,
         height: 650,
